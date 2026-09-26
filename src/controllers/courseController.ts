@@ -28,7 +28,22 @@ export const getCourses = async (req: AuthRequest, res: Response) => {
     include: {
       modules: {
         orderBy: { order: 'asc' },
-        include: { lessons: { orderBy: { order: 'asc' } } }
+        include: {
+          lessons: {
+            orderBy: { order: 'asc' },
+            select: {
+              id: true,
+              title: true,
+              description: true,
+              type: true,
+              order: true,
+              isPublished: true,
+              moduleId: true,
+              createdAt: true,
+              updatedAt: true
+            }
+          }
+        }
       }
     }
   });
@@ -49,7 +64,22 @@ export const getCourseById = async (req: AuthRequest, res: Response) => {
     include: {
       modules: {
         orderBy: { order: 'asc' },
-        include: { lessons: { orderBy: { order: 'asc' } } }
+        include: {
+          lessons: {
+            orderBy: { order: 'asc' },
+            select: {
+              id: true,
+              title: true,
+              description: true,
+              type: true,
+              order: true,
+              isPublished: true,
+              moduleId: true,
+              createdAt: true,
+              updatedAt: true
+            }
+          }
+        }
       }
     }
   });

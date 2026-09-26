@@ -63,6 +63,7 @@ model User {
   cvFileUrl         String?           // Cloudflare R2 reference
   role              Role              @default(STUDENT)
   eligibilityStatus EligibilityStatus @default(PENDING)
+  isEmailVerified   Boolean           @default(false)
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 
@@ -73,8 +74,30 @@ model User {
   examAttempts      ExamAttempt[]
   certificates      Certificate[]
   refreshTokens     RefreshToken[]
+  verificationTokens VerificationToken[]
+  resetTokens       PasswordResetToken[]
   auditLogs         AuditLog[]        @relation("UserAudit")
   adminAuditLogs    AuditLog[]        @relation("AdminAudit")
+}
+
+model VerificationToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model RefreshToken {

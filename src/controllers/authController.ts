@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import prisma from '../utils/prisma';
 import { generateToken, generateRefreshToken, hashToken } from '../utils/jwt';
 import { BadRequestError, UnauthorizedError, ConflictError } from '../utils/errors';
+import { sendVerificationEmail, sendPasswordResetEmail } from '../utils/emailService';
 
 const REFRESH_TOKEN_COOKIE_NAME = 'refreshToken';
 const REFRESH_TOKEN_EXPIRY_DAYS = 7;
@@ -57,8 +58,23 @@ export const register = async (req: Request, res: Response) => {
       qualification,
       professionalRole,
       organization,
+      isEmailVerified: false,
     }
   });
+
+  const verificationToken = crypto.randomBytes(32).toString('hex');
+  const tokenHash = crypto.createHash('sha256').update(verificationToken).digest('hex');
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+  await prisma.verificationToken.create({
+    data: {
+      userId: user.id,
+      tokenHash,
+      expiresAt
+    }
+  });
+
+  await sendVerificationEmail(user.email, verificationToken);
 
   const token = generateToken({ userId: user.id, role: user.role });
   const refreshToken = await createAndStoreRefreshToken(user.id);
@@ -219,3 +235,133 @@ export const getMe = async (req: Request, res: Response) => {
 
   res.status(200).json({ user });
 };
+
+export const verifyEmail = async (req: Request, res: Response) => {
+  const { token } = req.body;
+  if (!token) throw new BadRequestError('Token is required');
+
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  const record = await prisma.verificationToken.findUnique({
+    where: { tokenHash },
+    include: { user: true }
+  });
+
+  if (!record) {
+    throw new BadRequestError('Invalid or expired verification token');
+  }
+
+  if (record.expiresAt < new Date()) {
+    await prisma.verificationToken.delete({ where: { id: record.id } });
+    throw new BadRequestError('Verification token expired');
+  }
+
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: record.userId },
+      data: { isEmailVerified: true }
+    }),
+    prisma.verificationToken.delete({ where: { id: record.id } })
+  ]);
+
+  res.status(200).json({ message: 'Email verified successfully' });
+};
+
+export const resendVerification = async (req: Request, res: Response) => {
+  const { email } = req.body;
+  if (!email) throw new BadRequestError('Email is required');
+
+  const user = await prisma.user.findUnique({ where: { email } });
+  
+  // Anti-enumeration: always return same response
+  if (!user || user.isEmailVerified) {
+    return res.status(200).json({ message: 'If the email is registered and unverified, a verification link has been sent.' });
+  }
+
+  const verificationToken = crypto.randomBytes(32).toString('hex');
+  const tokenHash = crypto.createHash('sha256').update(verificationToken).digest('hex');
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+  // Remove old tokens
+  await prisma.verificationToken.deleteMany({ where: { userId: user.id } });
+
+  await prisma.verificationToken.create({
+    data: {
+      userId: user.id,
+      tokenHash,
+      expiresAt
+    }
+  });
+
+  await sendVerificationEmail(user.email, verificationToken);
+
+  res.status(200).json({ message: 'If the email is registered and unverified, a verification link has been sent.' });
+};
+
+export const forgotPassword = async (req: Request, res: Response) => {
+  const { email } = req.body;
+  if (!email) throw new BadRequestError('Email is required');
+
+  const user = await prisma.user.findUnique({ where: { email } });
+
+  if (!user) {
+    // Anti-enumeration
+    return res.status(200).json({ message: 'If that email address is registered, a password reset link has been sent.' });
+  }
+
+  const resetToken = crypto.randomBytes(32).toString('hex');
+  const tokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+  // Delete old reset tokens
+  await prisma.passwordResetToken.deleteMany({ where: { userId: user.id } });
+
+  await prisma.passwordResetToken.create({
+    data: {
+      userId: user.id,
+      tokenHash,
+      expiresAt
+    }
+  });
+
+  await sendPasswordResetEmail(user.email, resetToken);
+
+  res.status(200).json({ message: 'If that email address is registered, a password reset link has been sent.' });
+};
+
+export const resetPassword = async (req: Request, res: Response) => {
+  const { token, newPassword } = req.body;
+  if (!token || !newPassword) throw new BadRequestError('Token and new password are required');
+
+  if (newPassword.length < 8) {
+    throw new BadRequestError('Password must be at least 8 characters long');
+  }
+
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  const record = await prisma.passwordResetToken.findUnique({
+    where: { tokenHash }
+  });
+
+  if (!record || record.expiresAt < new Date()) {
+    if (record) await prisma.passwordResetToken.delete({ where: { id: record.id } });
+    throw new BadRequestError('Invalid or expired reset token');
+  }
+
+  const salt = await bcrypt.genSalt(10);
+  const passwordHash = await bcrypt.hash(newPassword, salt);
+
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: record.userId },
+      data: { passwordHash }
+    }),
+    prisma.passwordResetToken.delete({ where: { id: record.id } }),
+    // Revoke ALL existing refresh tokens for this user
+    prisma.refreshToken.updateMany({
+      where: { userId: record.userId },
+      data: { isRevoked: true }
+    })
+  ]);
+
+  res.status(200).json({ message: 'Password has been reset successfully. You have been logged out of all devices.' });
+};
+

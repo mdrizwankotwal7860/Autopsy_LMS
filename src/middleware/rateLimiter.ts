@@ -56,3 +56,47 @@ export const apiLimiter = rateLimit({
   keyGenerator,
   store: createRedisStore('rl:api:'),
 });
+
+// 3. Forgot Password Limiter
+export const forgotPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: getLimit('FORGOT_PASSWORD_RATE_LIMIT_MAX', 3),
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: rateLimitErrorHandler,
+  keyGenerator,
+  store: createRedisStore('rl:forgotpw:')
+});
+
+// 4. Reset Password Limiter
+export const resetPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: getLimit('RESET_PASSWORD_RATE_LIMIT_MAX', 5),
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: rateLimitErrorHandler,
+  keyGenerator,
+  store: createRedisStore('rl:resetpw:')
+});
+
+// 5. Verify Email Limiter
+export const verifyEmailLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: getLimit('VERIFY_EMAIL_RATE_LIMIT_MAX', 5),
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: rateLimitErrorHandler,
+  keyGenerator,
+  store: createRedisStore('rl:verifyem:')
+});
+
+// 6. Resend Verification Limiter
+export const resendVerificationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: getLimit('RESEND_VERIFICATION_RATE_LIMIT_MAX', 3),
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: rateLimitErrorHandler,
+  keyGenerator,
+  store: createRedisStore('rl:resendem:')
+});

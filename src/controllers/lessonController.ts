@@ -85,6 +85,12 @@ export const getLesson = async (req: AuthRequest, res: Response) => {
   }
 
   if (userRole !== 'ADMIN') {
+    // @ts-ignore
+    const isEmailVerified = req.user!.isEmailVerified;
+    if (!isEmailVerified) {
+      throw new ForbiddenError('You must verify your email before accessing lessons');
+    }
+
     if (!lesson.isPublished) {
       throw new ForbiddenError('Lesson is not published');
     }

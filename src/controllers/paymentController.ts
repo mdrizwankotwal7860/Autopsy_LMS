@@ -16,6 +16,10 @@ export const createPaymentSession = async (req: AuthRequest, res: Response) => {
     throw new ForbiddenError('You must be approved to purchase courses');
   }
 
+  if (!user.isEmailVerified) {
+    throw new ForbiddenError('You must verify your email before purchasing courses');
+  }
+
   const course = await prisma.course.findUnique({ where: { id: courseId } });
   if (!course) throw new NotFoundError('Course not found');
   if (course.status !== 'PUBLISHED') throw new BadRequestError('Course is not available');

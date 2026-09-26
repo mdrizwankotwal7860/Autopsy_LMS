@@ -36,7 +36,8 @@ describe('Payment & Stripe Security', () => {
   const mockUser = {
     id: 'user-1',
     email: 'test@example.com',
-    eligibilityStatus: 'APPROVED'
+    eligibilityStatus: 'APPROVED',
+    isEmailVerified: true
   };
 
   const mockCourse = {
@@ -71,6 +72,18 @@ describe('Payment & Stripe Security', () => {
   });
 
   describe('createPaymentSession', () => {
+    it('Unverified user cannot create Stripe checkout', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ ...mockUser, isEmailVerified: false } as any);
+      
+      const res = await request(app)
+        .post('/api/payments/create-session')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ courseId: mockCourse.id });
+        
+      expect(res.statusCode).toBe(403);
+      expect(res.text).toMatch(/verify your email/i);
+    });
+
     it('Client cannot choose an arbitrary course price', async () => {
       const res = await request(app)
         .post('/api/payments/create-session')

@@ -8,6 +8,7 @@ export interface AuthRequest extends Request {
     id: string;
     role: string;
     eligibilityStatus: string;
+    isEmailVerified: boolean;
   };
 }
 
@@ -27,7 +28,7 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
     
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
-      select: { id: true, role: true, eligibilityStatus: true }
+      select: { id: true, role: true, eligibilityStatus: true, isEmailVerified: true }
     });
 
     if (!user) {
@@ -37,7 +38,8 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
     req.user = {
       id: user.id,
       role: user.role,
-      eligibilityStatus: user.eligibilityStatus
+      eligibilityStatus: user.eligibilityStatus,
+      isEmailVerified: user.isEmailVerified
     };
     
     next();
