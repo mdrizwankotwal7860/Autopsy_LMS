@@ -3,7 +3,8 @@ import {
   createLesson, 
   updateLesson, 
   deleteLesson,
-  getLesson
+  getLesson,
+  getVideoAccess
 } from '../controllers/lessonController';
 import { authenticate, authorize } from '../middleware/authMiddleware';
 import { asyncHandler } from '../middleware/asyncHandler';
@@ -16,6 +17,7 @@ router.use(authenticate);
 
 // Public/Student routes (requires enrollment logic in controller)
 router.get('/:lessonId', asyncHandler(getLesson));
+router.get('/:lessonId/video-access', asyncHandler(getVideoAccess));
 
 // Admin only routes
 router.use(authorize('ADMIN'));
