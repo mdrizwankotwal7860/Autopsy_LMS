@@ -78,6 +78,8 @@ model User {
   resetTokens       PasswordResetToken[]
   auditLogs         AuditLog[]        @relation("UserAudit")
   adminAuditLogs    AuditLog[]        @relation("AdminAudit")
+
+  @@index([createdAt])
 }
 
 model VerificationToken {
@@ -124,6 +126,8 @@ model Course {
   modules     Module[]
   enrollments Enrollment[]
   payments    Payment[]
+
+  @@index([createdAt])
 }
 
 model Module {
@@ -171,6 +175,7 @@ model Enrollment {
   payment   Payment?
 
   @@unique([userId, courseId])
+  @@index([createdAt])
 }
 
 model Payment {

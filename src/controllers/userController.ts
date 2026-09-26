@@ -4,19 +4,36 @@ import { NotFoundError } from '../utils/errors';
 // import { sendEligibilityEmail } from '../integrations/email/brevoService';
 
 export const getUsers = async (req: Request, res: Response) => {
-  const users = await prisma.user.findMany({
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      eligibilityStatus: true,
-      createdAt: true
-    },
-    orderBy: { createdAt: 'desc' }
-  });
+  const page = Math.max(1, parseInt(req.query.page as string) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
+  const skip = (page - 1) * limit;
 
-  res.status(200).json({ users });
+  const [total, users] = await Promise.all([
+    prisma.user.count(),
+    prisma.user.findMany({
+      skip,
+      take: limit,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        eligibilityStatus: true,
+        createdAt: true
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+  ]);
+
+  res.status(200).json({
+    data: users,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit)
+    }
+  });
 };
 
 export const getUserById = async (req: Request, res: Response) => {

@@ -23,32 +23,29 @@ export const getCourses = async (req: AuthRequest, res: Response) => {
     filter = { status: 'PUBLISHED' };
   }
 
-  const courses = await prisma.course.findMany({
-    where: filter,
-    include: {
-      modules: {
-        orderBy: { order: 'asc' },
-        include: {
-          lessons: {
-            orderBy: { order: 'asc' },
-            select: {
-              id: true,
-              title: true,
-              description: true,
-              type: true,
-              order: true,
-              isPublished: true,
-              moduleId: true,
-              createdAt: true,
-              updatedAt: true
-            }
-          }
-        }
-      }
+  const page = Math.max(1, parseInt(req.query.page as string) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
+  const skip = (page - 1) * limit;
+
+  const [total, courses] = await Promise.all([
+    prisma.course.count({ where: filter }),
+    prisma.course.findMany({
+      where: filter,
+      skip,
+      take: limit,
+      orderBy: { createdAt: 'desc' }
+    })
+  ]);
+
+  res.status(200).json({
+    data: courses,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit)
     }
   });
-
-  res.status(200).json({ courses });
 };
 
 export const getCourseById = async (req: AuthRequest, res: Response) => {

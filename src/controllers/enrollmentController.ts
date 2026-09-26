@@ -17,18 +17,35 @@ export const getEnrollments = async (req: AuthRequest, res: Response) => {
     filter = { userId: req.query.userId as string };
   }
 
-  const enrollments = await prisma.enrollment.findMany({
-    where: filter,
-    include: {
-      course: {
-        select: { id: true, title: true, status: true }
-      },
-      user: userRole === 'ADMIN' ? { select: { id: true, name: true, email: true } } : false
-    },
-    orderBy: { createdAt: 'desc' }
-  });
+  const page = Math.max(1, parseInt(req.query.page as string) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
+  const skip = (page - 1) * limit;
 
-  res.status(200).json({ enrollments });
+  const [total, enrollments] = await Promise.all([
+    prisma.enrollment.count({ where: filter }),
+    prisma.enrollment.findMany({
+      where: filter,
+      skip,
+      take: limit,
+      include: {
+        course: {
+          select: { id: true, title: true, status: true }
+        },
+        user: userRole === 'ADMIN' ? { select: { id: true, name: true, email: true } } : false
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+  ]);
+
+  res.status(200).json({
+    data: enrollments,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit)
+    }
+  });
 };
 
 export const getEnrollmentById = async (req: AuthRequest, res: Response) => {
