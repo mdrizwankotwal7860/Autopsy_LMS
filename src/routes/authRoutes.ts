@@ -4,12 +4,13 @@ import { registerValidator, loginValidator } from '../validators/authValidators'
 import { validate } from '../middleware/validate';
 import { authenticate } from '../middleware/authMiddleware';
 import { asyncHandler } from '../middleware/asyncHandler';
+import { authLimiter } from '../middleware/rateLimiter';
 
 const router = Router();
 
-router.post('/register', registerValidator, validate, asyncHandler(register));
-router.post('/login', loginValidator, validate, asyncHandler(login));
-router.post('/refresh', asyncHandler(refresh));
+router.post('/register', authLimiter, registerValidator, validate, asyncHandler(register));
+router.post('/login', authLimiter, loginValidator, validate, asyncHandler(login));
+router.post('/refresh', authLimiter, asyncHandler(refresh));
 router.post('/logout', asyncHandler(logout));
 router.get('/me', authenticate, asyncHandler(getMe));
 

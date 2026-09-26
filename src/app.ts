@@ -13,8 +13,12 @@ import progressRoutes from './routes/progressRoutes';
 import { handleStripeWebhook } from './controllers/paymentController';
 import { errorMiddleware } from './middleware/errorMiddleware';
 import { NotFoundError } from './utils/errors';
+import { apiLimiter } from './middleware/rateLimiter';
 
 const app: Express = express();
+
+// Trust proxy for rate limiting (Cloudflare, Railway, Render)
+app.set('trust proxy', 1);
 
 // Security middleware
 app.use(helmet());
@@ -35,6 +39,9 @@ app.use(cookieParser());
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
+
+// Global API Rate Limiter
+app.use('/api', apiLimiter);
 
 // Routes
 app.use('/api/auth', authRoutes);
