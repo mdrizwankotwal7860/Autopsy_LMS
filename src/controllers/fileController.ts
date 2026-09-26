@@ -49,12 +49,11 @@ export const getProtectedFile = async (req: AuthRequest, res: Response) => {
   if (userRole === 'ADMIN') {
     isAuthorized = true;
   } else {
-    // If it's a CV, check if it starts with cvs/{userId}
+    // Only CV access is allowed via this legacy endpoint.
+    // Course documents must use the dedicated document-access endpoint.
     if (key.startsWith(`cvs/${userId}/`)) {
       isAuthorized = true;
     }
-    // TODO: Add logic for assignment submissions and course materials
-    // For now, if we reach here and it's not their CV, we block unless we have specific logic
   }
 
   if (!isAuthorized) {
