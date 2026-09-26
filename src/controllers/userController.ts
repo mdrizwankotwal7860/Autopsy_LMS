@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import prisma from '../utils/prisma';
 import { NotFoundError } from '../utils/errors';
-import { EligibilityStatus } from '@prisma/client';
 // import { sendEligibilityEmail } from '../integrations/email/brevoService';
 
 export const getUsers = async (req: Request, res: Response) => {
@@ -24,7 +23,7 @@ export const getUserById = async (req: Request, res: Response) => {
   const { id } = req.params;
 
   const user = await prisma.user.findUnique({
-    where: { id },
+    where: { id: id as string },
     select: {
       id: true,
       name: true,
@@ -54,14 +53,14 @@ export const updateEligibility = async (req: Request, res: Response) => {
   const { id } = req.params;
   const { status } = req.body; // PENDING, APPROVED, REJECTED
 
-  const user = await prisma.user.findUnique({ where: { id } });
+  const user = await prisma.user.findUnique({ where: { id: id as string } });
   if (!user) {
     throw new NotFoundError('User not found');
   }
 
   const updatedUser = await prisma.user.update({
-    where: { id },
-    data: { eligibilityStatus: status as EligibilityStatus }
+    where: { id: id as string },
+    data: { eligibilityStatus: status as any }
   });
 
   // Log admin action
@@ -70,10 +69,10 @@ export const updateEligibility = async (req: Request, res: Response) => {
   await prisma.auditLog.create({
     data: {
       adminId,
-      userId: id,
+      userId: id as string,
       action: 'UPDATE_ELIGIBILITY',
       resource: 'User',
-      resourceId: id,
+      resourceId: id as string,
       details: { from: user.eligibilityStatus, to: status }
     }
   });

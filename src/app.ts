@@ -2,6 +2,7 @@ import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import cookieParser from 'cookie-parser';
 import authRoutes from './routes/authRoutes';
 import userRoutes from './routes/userRoutes';
 import courseRoutes from './routes/courseRoutes';
@@ -28,6 +29,7 @@ app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), han
 // Request parsing
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 // Logging
 if (process.env.NODE_ENV === 'development') {

@@ -72,8 +72,21 @@ model User {
   submissions       AssignmentSubmission[]
   examAttempts      ExamAttempt[]
   certificates      Certificate[]
+  refreshTokens     RefreshToken[]
   auditLogs         AuditLog[]        @relation("UserAudit")
   adminAuditLogs    AuditLog[]        @relation("AdminAudit")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  familyId  String
+  tokenHash String   @unique
+  isRevoked Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Course {

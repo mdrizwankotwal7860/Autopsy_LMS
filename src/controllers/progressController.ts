@@ -1,16 +1,38 @@
 import { Request, Response } from 'express';
 import prisma from '../utils/prisma';
 import { AuthRequest } from '../middleware/authMiddleware';
-import { NotFoundError } from '../utils/errors';
+import { NotFoundError, ForbiddenError } from '../utils/errors';
 
 export const updateProgress = async (req: AuthRequest, res: Response) => {
   // @ts-ignore
   const userId = req.user!.id;
+  // @ts-ignore
+  const userRole = req.user!.role;
   const { lessonId, isCompleted, lastWatched } = req.body;
 
-  const lesson = await prisma.lesson.findUnique({ where: { id: lessonId } });
+  const lesson = await prisma.lesson.findUnique({ 
+    where: { id: lessonId },
+    include: {
+      module: {
+        select: { courseId: true }
+      }
+    }
+  });
+
   if (!lesson) {
     throw new NotFoundError('Lesson not found');
+  }
+
+  if (userRole !== 'ADMIN') {
+    const enrollment = await prisma.enrollment.findUnique({
+      where: {
+        userId_courseId: { userId, courseId: lesson.module.courseId }
+      }
+    });
+
+    if (!enrollment || enrollment.status !== 'ACTIVE') {
+      throw new ForbiddenError('You must be actively enrolled to update progress');
+    }
   }
 
   let progress = await prisma.lessonProgress.findUnique({
@@ -44,7 +66,21 @@ export const updateProgress = async (req: AuthRequest, res: Response) => {
 export const getCourseProgress = async (req: AuthRequest, res: Response) => {
   // @ts-ignore
   const userId = req.user!.id;
-  const { courseId } = req.params;
+  // @ts-ignore
+  const userRole = req.user!.role;
+  const courseId = req.params.courseId as string;
+
+  if (userRole !== 'ADMIN') {
+    const enrollment = await prisma.enrollment.findUnique({
+      where: {
+        userId_courseId: { userId, courseId }
+      }
+    });
+
+    if (!enrollment || enrollment.status !== 'ACTIVE') {
+      throw new ForbiddenError('You must be actively enrolled to view progress');
+    }
+  }
 
   const lessons = await prisma.lesson.findMany({
     where: {
