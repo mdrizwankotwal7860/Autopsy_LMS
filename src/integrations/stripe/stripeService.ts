@@ -9,7 +9,8 @@ export const createCheckoutSession = async (
   userEmail: string,
   courseId: string,
   courseTitle: string,
-  price: number
+  price: number,
+  idempotencyKey?: string
 ) => {
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ['card'],
@@ -34,6 +35,8 @@ export const createCheckoutSession = async (
     mode: 'payment',
     success_url: `${process.env.FRONTEND_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${process.env.FRONTEND_URL}/courses/${courseId}`
+  }, {
+    idempotencyKey
   });
 
   return session;
