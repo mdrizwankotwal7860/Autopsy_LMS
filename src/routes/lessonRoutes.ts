@@ -11,8 +11,11 @@ import { authenticate, authorize } from '../middleware/authMiddleware';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { body } from 'express-validator';
 import { validate } from '../middleware/validate';
+import assignmentRoutes from './assignmentRoutes';
 
 const router = Router({ mergeParams: true });
+
+router.use('/:lessonId/assignment', assignmentRoutes);
 
 router.use(authenticate);
 
