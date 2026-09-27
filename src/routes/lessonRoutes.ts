@@ -12,10 +12,12 @@ import { asyncHandler } from '../middleware/asyncHandler';
 import { body } from 'express-validator';
 import { validate } from '../middleware/validate';
 import assignmentRoutes from './assignmentRoutes';
+import examRoutes from './examRoutes';
 
 const router = Router({ mergeParams: true });
 
 router.use('/:lessonId/assignment', assignmentRoutes);
+router.use('/:lessonId/exam', examRoutes);
 
 router.use(authenticate);
 
