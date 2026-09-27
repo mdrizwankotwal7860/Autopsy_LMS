@@ -60,24 +60,24 @@ model User {
   qualification     String?
   professionalRole  String?
   organization      String?
-  cvFileUrl         String?           // Cloudflare R2 reference
+  cvFileUrl         String? // Cloudflare R2 reference
   role              Role              @default(STUDENT)
   eligibilityStatus EligibilityStatus @default(PENDING)
   isEmailVerified   Boolean           @default(false)
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 
-  enrollments       Enrollment[]
-  payments          Payment[]
-  progress          LessonProgress[]
-  submissions       AssignmentSubmission[]
-  examAttempts      ExamAttempt[]
-  certificates      Certificate[]
-  refreshTokens     RefreshToken[]
+  enrollments        Enrollment[]
+  payments           Payment[]
+  progress           LessonProgress[]
+  submissions        AssignmentSubmission[]
+  examAttempts       ExamAttempt[]
+  certificates       Certificate[]
+  refreshTokens      RefreshToken[]
   verificationTokens VerificationToken[]
-  resetTokens       PasswordResetToken[]
-  auditLogs         AuditLog[]        @relation("UserAudit")
-  adminAuditLogs    AuditLog[]        @relation("AdminAudit")
+  resetTokens        PasswordResetToken[]
+  auditLogs          AuditLog[]             @relation("UserAudit")
+  adminAuditLogs     AuditLog[]             @relation("AdminAudit")
 
   @@index([createdAt])
 }
@@ -89,7 +89,7 @@ model VerificationToken {
   expiresAt DateTime
   createdAt DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model PasswordResetToken {
@@ -99,7 +99,7 @@ model PasswordResetToken {
   expiresAt DateTime
   createdAt DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model RefreshToken {
@@ -111,7 +111,7 @@ model RefreshToken {
   expiresAt DateTime
   createdAt DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Course {
@@ -123,9 +123,10 @@ model Course {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
-  modules     Module[]
-  enrollments Enrollment[]
-  payments    Payment[]
+  modules      Module[]
+  enrollments  Enrollment[]
+  payments     Payment[]
+  certificates Certificate[]
 
   @@index([createdAt])
 }
@@ -139,8 +140,8 @@ model Module {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  lessons     Lesson[]
+  course  Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons Lesson[]
 }
 
 model Lesson {
@@ -148,8 +149,8 @@ model Lesson {
   title       String
   description String?
   type        LessonType
-  content     String?    // Text content or document URL
-  videoUrl    String?    // Cloudflare Stream / Bunny.net video ID/URL
+  content     String? // Text content or document URL
+  videoUrl    String? // Cloudflare Stream / Bunny.net video ID/URL
   order       Int
   isPublished Boolean    @default(false)
   moduleId    String
@@ -170,9 +171,9 @@ model Enrollment {
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
 
-  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  course    Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  payment   Payment?
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course  Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  payment Payment?
 
   @@unique([userId, courseId])
   @@index([createdAt])
@@ -191,9 +192,9 @@ model Payment {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
-  user            User        @relation(fields: [userId], references: [id])
-  course          Course      @relation(fields: [courseId], references: [id])
-  enrollment      Enrollment? @relation(fields: [enrollmentId], references: [id])
+  user       User        @relation(fields: [userId], references: [id])
+  course     Course      @relation(fields: [courseId], references: [id])
+  enrollment Enrollment? @relation(fields: [enrollmentId], references: [id])
 }
 
 model LessonProgress {
@@ -202,12 +203,12 @@ model LessonProgress {
   lessonId    String
   isCompleted Boolean   @default(false)
   completedAt DateTime?
-  lastWatched Int?      // seconds watched if video
+  lastWatched Int? // seconds watched if video
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  lesson      Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
 
   @@unique([userId, lessonId])
 }
@@ -229,7 +230,7 @@ model AssignmentSubmission {
   id           String           @id @default(uuid())
   assignmentId String
   userId       String
-  fileUrl      String?          // R2 file reference
+  fileUrl      String? // R2 file reference
   textAnswer   String?
   status       SubmissionStatus @default(PENDING)
   marks        Int?
@@ -237,8 +238,8 @@ model AssignmentSubmission {
   submittedAt  DateTime         @default(now())
   gradedAt     DateTime?
 
-  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, assignmentId])
 }
@@ -253,23 +254,23 @@ model Exam {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  lesson        Lesson        @relation(fields: [lessonId], references: [id], onDelete: Cascade)
-  questions     Question[]
-  attempts      ExamAttempt[]
+  lesson    Lesson        @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  questions Question[]
+  attempts  ExamAttempt[]
 }
 
 model Question {
   id        String   @id @default(uuid())
   examId    String
   text      String
-  options   Json     // Array of options
-  answer    String   // Correct option
+  options   Json // Array of options
+  answer    String // Correct option
   marks     Int      @default(1)
   order     Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  exam Exam @relation(fields: [examId], references: [id], onDelete: Cascade)
 }
 
 model ExamAttempt {
@@ -281,31 +282,32 @@ model ExamAttempt {
   startedAt DateTime  @default(now())
   endedAt   DateTime?
 
-  exam      Exam   @relation(fields: [examId], references: [id], onDelete: Cascade)
-  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exam Exam @relation(fields: [examId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Certificate {
-  id        String   @id @default(uuid())
-  userId    String
-  courseId  String
-  issuedAt  DateTime @default(now())
-  fileUrl   String?  // R2 file reference
-  uniqueId  String   @unique // For verification
+  id       String   @id @default(uuid())
+  userId   String
+  courseId String
+  issuedAt DateTime @default(now())
+  fileUrl  String? // R2 file reference
+  uniqueId String   @unique // For verification
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
 }
 
 model AuditLog {
-  id          String   @id @default(uuid())
-  adminId     String?
-  userId      String?
-  action      String
-  resource    String
-  resourceId  String?
-  details     Json?
-  createdAt   DateTime @default(now())
+  id         String   @id @default(uuid())
+  adminId    String?
+  userId     String?
+  action     String
+  resource   String
+  resourceId String?
+  details    Json?
+  createdAt  DateTime @default(now())
 
-  admin       User?    @relation("AdminAudit", fields: [adminId], references: [id])
-  user        User?    @relation("UserAudit", fields: [userId], references: [id])
+  admin User? @relation("AdminAudit", fields: [adminId], references: [id])
+  user  User? @relation("UserAudit", fields: [userId], references: [id])
 }
