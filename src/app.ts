@@ -10,6 +10,7 @@ import paymentRoutes from './routes/paymentRoutes';
 import fileRoutes from './routes/fileRoutes';
 import enrollmentRoutes from './routes/enrollmentRoutes';
 import progressRoutes from './routes/progressRoutes';
+import certificateRoutes from './routes/certificateRoutes';
 import { handleStripeWebhook } from './controllers/paymentController';
 import { errorMiddleware } from './middleware/errorMiddleware';
 import { NotFoundError } from './utils/errors';
@@ -51,6 +52,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/enrollments', enrollmentRoutes);
 app.use('/api/progress', progressRoutes);
+app.use('/api/certificates', certificateRoutes);
 
 // Basic health check route
 app.get('/health', (req: Request, res: Response) => {

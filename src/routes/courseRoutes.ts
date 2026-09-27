@@ -12,11 +12,13 @@ import { body } from 'express-validator';
 import { validate } from '../middleware/validate';
 
 import moduleRoutes from './moduleRoutes';
+import certificateRoutes from './certificateRoutes';
 
 const router = Router();
 
-// Mount module routes
+// Mount nested routes
 router.use('/:courseId/modules', moduleRoutes);
+router.use('/:courseId/certificates', certificateRoutes);
 
 // Public routes or student routes (depending on exact requirements, here we assume any authenticated user can view published courses)
 router.get('/', asyncHandler(getCourses));

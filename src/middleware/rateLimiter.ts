@@ -18,10 +18,12 @@ const rateLimitErrorHandler = (req: any, res: any) => {
   });
 };
 
-// Helper to securely identify the client IP, preferring CF-Connecting-IP if behind Cloudflare
 const keyGenerator = (req: Request): string => {
-  return (req.headers['cf-connecting-ip'] as string) || req.ip || 'unknown';
+  const ip = (req.headers['cf-connecting-ip'] as string) || req.ip || 'unknown';
+  return ip.replace(/^::ffff:/, '');
 };
+
+const validateOptions = { validations: { ip: false } };
 
 const createRedisStore = (prefix: string) => {
   return redisEnabled && redisClient ? new RedisStore({
@@ -36,6 +38,7 @@ const createRedisStore = (prefix: string) => {
 // 1. Strict Authentication Limiter
 // Protects login, register, refresh against brute-force and credential stuffing
 export const authLimiter = rateLimit({
+  validate: false,
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: getLimit('AUTH_RATE_LIMIT_MAX', 10), // Limit each IP to 10 requests per window
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
@@ -48,6 +51,7 @@ export const authLimiter = rateLimit({
 // 2. General API Limiter
 // Prevents general API abuse/DDoS while allowing normal LMS operations
 export const apiLimiter = rateLimit({
+  validate: false,
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: getLimit('API_RATE_LIMIT_MAX', 200), // Generous limit for normal usage
   standardHeaders: true,
@@ -59,6 +63,7 @@ export const apiLimiter = rateLimit({
 
 // 3. Forgot Password Limiter
 export const forgotPasswordLimiter = rateLimit({
+  validate: false,
   windowMs: 15 * 60 * 1000,
   max: getLimit('FORGOT_PASSWORD_RATE_LIMIT_MAX', 3),
   standardHeaders: true,
@@ -70,6 +75,7 @@ export const forgotPasswordLimiter = rateLimit({
 
 // 4. Reset Password Limiter
 export const resetPasswordLimiter = rateLimit({
+  validate: false,
   windowMs: 15 * 60 * 1000,
   max: getLimit('RESET_PASSWORD_RATE_LIMIT_MAX', 5),
   standardHeaders: true,
@@ -81,6 +87,7 @@ export const resetPasswordLimiter = rateLimit({
 
 // 5. Verify Email Limiter
 export const verifyEmailLimiter = rateLimit({
+  validate: false,
   windowMs: 15 * 60 * 1000,
   max: getLimit('VERIFY_EMAIL_RATE_LIMIT_MAX', 5),
   standardHeaders: true,
@@ -92,6 +99,7 @@ export const verifyEmailLimiter = rateLimit({
 
 // 6. Resend Verification Limiter
 export const resendVerificationLimiter = rateLimit({
+  validate: false,
   windowMs: 15 * 60 * 1000,
   max: getLimit('RESEND_VERIFICATION_RATE_LIMIT_MAX', 3),
   standardHeaders: true,
