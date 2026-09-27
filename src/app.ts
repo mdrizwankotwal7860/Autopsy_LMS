@@ -54,6 +54,10 @@ app.use('/api/progress', progressRoutes);
 
 // Basic health check route
 app.get('/health', (req: Request, res: Response) => {
+  if (req.app.locals.isShuttingDown) {
+    res.status(503).json({ status: 'shutting_down', message: 'LMS Backend is shutting down' });
+    return;
+  }
   res.status(200).json({ status: 'ok', message: 'LMS Backend is running' });
 });
 
