@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
-import { v4 as uuidv4 } from 'uuid';
 import prisma from '../utils/prisma';
-import { BadRequestError, ForbiddenError, NotFoundError } from '../utils/errors';
+import { ForbiddenError, NotFoundError } from '../utils/errors';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { generateCertificatePDF } from '../utils/pdfGenerator';
 import { uploadFile, getFileUrl } from '../integrations/storage/r2Service';

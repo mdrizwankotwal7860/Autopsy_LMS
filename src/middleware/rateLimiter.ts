@@ -23,8 +23,6 @@ const keyGenerator = (req: Request): string => {
   return ip.replace(/^::ffff:/, '');
 };
 
-const validateOptions = { validations: { ip: false } };
-
 const createRedisStore = (prefix: string) => {
   return redisEnabled && redisClient ? new RedisStore({
     prefix,
