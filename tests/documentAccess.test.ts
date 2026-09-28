@@ -28,38 +28,47 @@ jest.mock('../src/integrations/storage/r2Service', () => ({
 const mockPrisma = prisma as jest.Mocked<typeof prisma>;
 import { getFileUrl } from '../src/integrations/storage/r2Service';
 
+// Valid UUID constants for test IDs
+const USER_ID = '10000000-0000-4000-8000-000000000001';
+const ADMIN_ID = '10000000-0000-4000-8000-000000000099';
+const USER2_ID = '10000000-0000-4000-8000-000000000002';
+const COURSE_ID = '20000000-0000-4000-8000-000000000001';
+const COURSE2_ID = '20000000-0000-4000-8000-000000000002';
+const MODULE_ID = '30000000-0000-4000-8000-000000000001';
+const LESSON_ID = '40000000-0000-4000-8000-000000000001';
+
 describe('P2 File/Document Access Security', () => {
   let studentToken: string;
   let adminToken: string;
   let unverifiedStudentToken: string;
 
   const mockUser = {
-    id: 'user-1',
+    id: USER_ID,
     role: 'STUDENT',
     isEmailVerified: true
   };
 
   const mockAdmin = {
-    id: 'admin-1',
+    id: ADMIN_ID,
     role: 'ADMIN',
     isEmailVerified: true
   };
 
   const mockUnverifiedUser = {
-    id: 'user-2',
+    id: USER2_ID,
     role: 'STUDENT',
     isEmailVerified: false
   };
 
   const mockLesson = {
-    id: 'lesson-doc-1',
+    id: LESSON_ID,
     title: 'Autopsy Manual',
     type: 'DOCUMENT',
-    content: 'materials/course-1/doc-123.pdf',
+    content: `materials/${COURSE_ID}/doc-123.pdf`,
     videoUrl: null,
     isPublished: true,
-    moduleId: 'module-1',
-    module: { courseId: 'course-1' }
+    moduleId: MODULE_ID,
+    module: { courseId: COURSE_ID }
   };
 
   beforeEach(() => {
@@ -73,7 +82,7 @@ describe('P2 File/Document Access Security', () => {
   describe('GET /api/courses/:courseId/modules/:moduleId/lessons/:lessonId/document-access', () => {
     it('1. Unauthenticated request -> 401', async () => {
       const res = await request(app)
-        .get(`/api/courses/course-1/modules/module-1/lessons/lesson-doc-1/document-access`);
+        .get(`/api/courses/${COURSE_ID}/modules/${MODULE_ID}/lessons/${LESSON_ID}/document-access`);
       
       expect(res.statusCode).toBe(401);
     });
@@ -83,7 +92,7 @@ describe('P2 File/Document Access Security', () => {
       mockPrisma.lesson.findUnique.mockResolvedValue(mockLesson);
 
       const res = await request(app)
-        .get(`/api/courses/course-1/modules/module-1/lessons/lesson-doc-1/document-access`)
+        .get(`/api/courses/${COURSE_ID}/modules/${MODULE_ID}/lessons/${LESSON_ID}/document-access`)
         .set('Authorization', `Bearer ${unverifiedStudentToken}`);
       
       expect(res.statusCode).toBe(403);
@@ -95,7 +104,7 @@ describe('P2 File/Document Access Security', () => {
       mockPrisma.enrollment.findUnique.mockResolvedValue(null);
 
       const res = await request(app)
-        .get(`/api/courses/course-1/modules/module-1/lessons/lesson-doc-1/document-access`)
+        .get(`/api/courses/${COURSE_ID}/modules/${MODULE_ID}/lessons/${LESSON_ID}/document-access`)
         .set('Authorization', `Bearer ${studentToken}`);
       
       expect(res.statusCode).toBe(403);
@@ -107,7 +116,7 @@ describe('P2 File/Document Access Security', () => {
       mockPrisma.enrollment.findUnique.mockResolvedValue({ status: 'ACTIVE' });
 
       const res = await request(app)
-        .get(`/api/courses/course-1/modules/module-1/lessons/lesson-doc-1/document-access`)
+        .get(`/api/courses/${COURSE_ID}/modules/${MODULE_ID}/lessons/${LESSON_ID}/document-access`)
         .set('Authorization', `Bearer ${studentToken}`);
       
       expect(res.statusCode).toBe(200);
@@ -118,16 +127,16 @@ describe('P2 File/Document Access Security', () => {
     it('5. User from another course (IDOR) -> 403', async () => {
       mockPrisma.user.findUnique.mockResolvedValue(mockUser);
       
-      const targetLesson = { ...mockLesson, module: { courseId: 'course-2' } };
+      const targetLesson = { ...mockLesson, module: { courseId: COURSE2_ID } };
       mockPrisma.lesson.findUnique.mockResolvedValue(targetLesson);
       
       mockPrisma.enrollment.findUnique.mockImplementation((args) => {
-        if (args.where.userId_courseId.courseId === 'course-2') return null;
+        if (args.where.userId_courseId.courseId === COURSE2_ID) return null;
         return { status: 'ACTIVE' };
       });
 
       const res = await request(app)
-        .get(`/api/courses/course-2/modules/module-1/lessons/lesson-doc-1/document-access`)
+        .get(`/api/courses/${COURSE2_ID}/modules/${MODULE_ID}/lessons/${LESSON_ID}/document-access`)
         .set('Authorization', `Bearer ${studentToken}`);
       
       expect(res.statusCode).toBe(403);
@@ -139,7 +148,7 @@ describe('P2 File/Document Access Security', () => {
       mockPrisma.enrollment.findUnique.mockResolvedValue(null);
 
       const res = await request(app)
-        .get(`/api/courses/course-1/modules/module-1/lessons/lesson-doc-1/document-access`)
+        .get(`/api/courses/${COURSE_ID}/modules/${MODULE_ID}/lessons/${LESSON_ID}/document-access`)
         .set('Authorization', `Bearer ${adminToken}`);
       
       expect(res.statusCode).toBe(200);
@@ -151,7 +160,7 @@ describe('P2 File/Document Access Security', () => {
       mockPrisma.lesson.findUnique.mockResolvedValue({ ...mockLesson, isPublished: false });
 
       const res = await request(app)
-        .get(`/api/courses/course-1/modules/module-1/lessons/lesson-doc-1/document-access`)
+        .get(`/api/courses/${COURSE_ID}/modules/${MODULE_ID}/lessons/${LESSON_ID}/document-access`)
         .set('Authorization', `Bearer ${studentToken}`);
       
       expect(res.statusCode).toBe(403);
@@ -162,7 +171,7 @@ describe('P2 File/Document Access Security', () => {
       mockPrisma.lesson.findUnique.mockResolvedValue({ ...mockLesson, type: 'VIDEO' });
 
       const res = await request(app)
-        .get(`/api/courses/course-1/modules/module-1/lessons/lesson-doc-1/document-access`)
+        .get(`/api/courses/${COURSE_ID}/modules/${MODULE_ID}/lessons/${LESSON_ID}/document-access`)
         .set('Authorization', `Bearer ${studentToken}`);
       
       expect(res.statusCode).toBe(400);
@@ -176,7 +185,7 @@ describe('P2 File/Document Access Security', () => {
       mockPrisma.enrollment.findUnique.mockResolvedValue({ status: 'ACTIVE' });
 
       const res = await request(app)
-        .get(`/api/courses/course-1/modules/module-1/lessons/lesson-doc-1`)
+        .get(`/api/courses/${COURSE_ID}/modules/${MODULE_ID}/lessons/${LESSON_ID}`)
         .set('Authorization', `Bearer ${studentToken}`);
       
       expect(res.statusCode).toBe(200);
@@ -211,7 +220,7 @@ describe('P2 File/Document Access Security', () => {
       mockPrisma.user.findUnique.mockResolvedValue(mockUser);
 
       const res = await request(app)
-        .get(`/api/files/protected-file?key=materials/course-1/doc-123.pdf`)
+        .get(`/api/files/protected-file?key=materials/${COURSE_ID}/doc-123.pdf`)
         .set('Authorization', `Bearer ${studentToken}`);
       
       expect(res.statusCode).toBe(403);

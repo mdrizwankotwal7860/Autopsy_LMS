@@ -10,8 +10,6 @@ import app from '../src/app';
 import prisma from '../src/utils/prisma';
 import jwt from 'jsonwebtoken';
 
-
-
 jest.mock('../src/utils/prisma', () => ({
   user: {
     findUnique: jest.fn()
@@ -30,38 +28,47 @@ jest.mock('../src/utils/prisma', () => ({
 
 const mockPrisma = prisma as jest.Mocked<typeof prisma>;
 
+// Valid UUID constants for test IDs
+const USER_ID = '10000000-0000-4000-8000-000000000001';
+const USER2_ID = '10000000-0000-4000-8000-000000000002';
+const ADMIN_ID = '10000000-0000-4000-8000-000000000099';
+const COURSE_ID = '20000000-0000-4000-8000-000000000001';
+const COURSE2_ID = '20000000-0000-4000-8000-000000000002';
+const MODULE_ID = '30000000-0000-4000-8000-000000000001';
+const LESSON_ID = '40000000-0000-4000-8000-000000000001';
+
 describe('P1-E Video Access Security', () => {
   let studentToken: string;
   let adminToken: string;
   let unverifiedStudentToken: string;
 
   const mockUser = {
-    id: 'user-1',
+    id: USER_ID,
     role: 'STUDENT',
     isEmailVerified: true
   };
 
   const mockAdmin = {
-    id: 'admin-1',
+    id: ADMIN_ID,
     role: 'ADMIN',
     isEmailVerified: true
   };
 
   const mockUnverifiedUser = {
-    id: 'user-2',
+    id: USER2_ID,
     role: 'STUDENT',
     isEmailVerified: false
   };
 
   const mockLesson = {
-    id: 'lesson-1',
+    id: LESSON_ID,
     title: 'Autopsy Demo',
     type: 'VIDEO',
     videoUrl: 'permanent-cloudflare-id-12345',
     content: 'Secret content',
     isPublished: true,
-    moduleId: 'module-1',
-    module: { courseId: 'course-1' }
+    moduleId: MODULE_ID,
+    module: { courseId: COURSE_ID }
   };
 
   beforeEach(() => {
@@ -83,7 +90,7 @@ describe('P1-E Video Access Security', () => {
   describe('GET /api/courses/:courseId/modules/:moduleId/lessons/:lessonId/video-access', () => {
     it('1. Unauthenticated request -> 401', async () => {
       const res = await request(app)
-        .get(`/api/courses/course-1/modules/module-1/lessons/lesson-1/video-access`);
+        .get(`/api/courses/${COURSE_ID}/modules/${MODULE_ID}/lessons/${LESSON_ID}/video-access`);
       
       expect(res.statusCode).toBe(401);
     });
@@ -93,7 +100,7 @@ describe('P1-E Video Access Security', () => {
       mockPrisma.lesson.findUnique.mockResolvedValue(mockLesson);
 
       const res = await request(app)
-        .get(`/api/courses/course-1/modules/module-1/lessons/lesson-1/video-access`)
+        .get(`/api/courses/${COURSE_ID}/modules/${MODULE_ID}/lessons/${LESSON_ID}/video-access`)
         .set('Authorization', `Bearer ${unverifiedStudentToken}`);
       
       expect(res.statusCode).toBe(403);
@@ -106,7 +113,7 @@ describe('P1-E Video Access Security', () => {
       mockPrisma.enrollment.findUnique.mockResolvedValue(null);
 
       const res = await request(app)
-        .get(`/api/courses/course-1/modules/module-1/lessons/lesson-1/video-access`)
+        .get(`/api/courses/${COURSE_ID}/modules/${MODULE_ID}/lessons/${LESSON_ID}/video-access`)
         .set('Authorization', `Bearer ${studentToken}`);
       
       expect(res.statusCode).toBe(403);
@@ -119,7 +126,7 @@ describe('P1-E Video Access Security', () => {
       mockPrisma.enrollment.findUnique.mockResolvedValue({ status: 'ACTIVE' });
 
       const res = await request(app)
-        .get(`/api/courses/course-1/modules/module-1/lessons/lesson-1/video-access`)
+        .get(`/api/courses/${COURSE_ID}/modules/${MODULE_ID}/lessons/${LESSON_ID}/video-access`)
         .set('Authorization', `Bearer ${studentToken}`);
       
       expect(res.statusCode).toBe(200);
@@ -146,7 +153,7 @@ describe('P1-E Video Access Security', () => {
       mockPrisma.enrollment.findUnique.mockResolvedValue({ status: 'ACTIVE' });
 
       const res = await request(app)
-        .get(`/api/courses/course-1/modules/module-1/lessons/lesson-1/video-access`)
+        .get(`/api/courses/${COURSE_ID}/modules/${MODULE_ID}/lessons/${LESSON_ID}/video-access`)
         .set('Authorization', `Bearer ${studentToken}`);
       
       expect(res.statusCode).toBe(503);
@@ -159,18 +166,18 @@ describe('P1-E Video Access Security', () => {
     it('5. User from another course (IDOR) -> 403', async () => {
       mockPrisma.user.findUnique.mockResolvedValue(mockUser);
       
-      // Target lesson belongs to course-2
-      const targetLesson = { ...mockLesson, module: { courseId: 'course-2' } };
+      // Target lesson belongs to COURSE2_ID
+      const targetLesson = { ...mockLesson, module: { courseId: COURSE2_ID } };
       mockPrisma.lesson.findUnique.mockResolvedValue(targetLesson);
       
-      // User is only enrolled in course-1, so checking course-2 returns null
+      // User is only enrolled in COURSE_ID, so checking COURSE2_ID returns null
       mockPrisma.enrollment.findUnique.mockImplementation((args) => {
-        if (args.where.userId_courseId.courseId === 'course-2') return null;
+        if (args.where.userId_courseId.courseId === COURSE2_ID) return null;
         return { status: 'ACTIVE' };
       });
 
       const res = await request(app)
-        .get(`/api/courses/course-2/modules/module-1/lessons/lesson-1/video-access`)
+        .get(`/api/courses/${COURSE2_ID}/modules/${MODULE_ID}/lessons/${LESSON_ID}/video-access`)
         .set('Authorization', `Bearer ${studentToken}`);
       
       expect(res.statusCode).toBe(403);
@@ -183,7 +190,7 @@ describe('P1-E Video Access Security', () => {
       mockPrisma.enrollment.findUnique.mockResolvedValue(null);
 
       const res = await request(app)
-        .get(`/api/courses/course-1/modules/module-1/lessons/lesson-1/video-access`)
+        .get(`/api/courses/${COURSE_ID}/modules/${MODULE_ID}/lessons/${LESSON_ID}/video-access`)
         .set('Authorization', `Bearer ${adminToken}`);
       
       expect(res.statusCode).toBe(200);
@@ -195,7 +202,7 @@ describe('P1-E Video Access Security', () => {
       mockPrisma.lesson.findUnique.mockResolvedValue({ ...mockLesson, isPublished: false });
 
       const res = await request(app)
-        .get(`/api/courses/course-1/modules/module-1/lessons/lesson-1/video-access`)
+        .get(`/api/courses/${COURSE_ID}/modules/${MODULE_ID}/lessons/${LESSON_ID}/video-access`)
         .set('Authorization', `Bearer ${studentToken}`);
       
       expect(res.statusCode).toBe(403);
@@ -211,7 +218,7 @@ describe('P1-E Video Access Security', () => {
       mockPrisma.enrollment.findUnique.mockResolvedValue({ status: 'ACTIVE' });
 
       const res = await request(app)
-        .get(`/api/courses/course-1/modules/module-1/lessons/lesson-1`)
+        .get(`/api/courses/${COURSE_ID}/modules/${MODULE_ID}/lessons/${LESSON_ID}`)
         .set('Authorization', `Bearer ${studentToken}`);
       
       expect(res.statusCode).toBe(200);
@@ -224,14 +231,14 @@ describe('P1-E Video Access Security', () => {
     it('12. Public course catalog does not expose videoUrl/private content', async () => {
       // Mock getCourseById which uses Prisma select now
       mockPrisma.course.findFirst.mockResolvedValue({
-        id: 'course-1',
+        id: COURSE_ID,
         title: 'Course 1',
         modules: [
           {
-            id: 'module-1',
+            id: MODULE_ID,
             lessons: [
               {
-                id: 'lesson-1',
+                id: LESSON_ID,
                 title: 'Autopsy Demo',
                 type: 'VIDEO',
                 // Notice videoUrl and content are NOT here, because we changed Prisma select
@@ -243,7 +250,7 @@ describe('P1-E Video Access Security', () => {
       });
 
       const res = await request(app)
-        .get(`/api/courses/course-1`);
+        .get(`/api/courses/${COURSE_ID}`);
       
       expect(res.statusCode).toBe(200);
       const returnedLesson = res.body.course.modules[0].lessons[0];

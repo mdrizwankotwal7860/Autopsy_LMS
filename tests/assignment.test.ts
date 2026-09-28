@@ -29,10 +29,20 @@ jest.mock('../src/utils/prisma', () => ({
 
 jest.mock('../src/integrations/storage/r2Service', () => ({
   getFileUrl: jest.fn().mockResolvedValue('https://mocked.com/file.pdf'),
-  uploadFile: jest.fn().mockResolvedValue('assignments/assignment-1/user-1/file.pdf')
+  uploadFile: jest.fn().mockResolvedValue('assignments/a0000000-0000-4000-8000-000000000001/u0000000-0000-4000-8000-000000000001/file.pdf')
 }));
 
 const mockPrisma = prisma as jest.Mocked<typeof prisma>;
+
+// Valid UUID constants for test IDs
+const USER_ID = '10000000-0000-4000-8000-000000000001';
+const USER2_ID = '10000000-0000-4000-8000-000000000002';
+const ADMIN_ID = '10000000-0000-4000-8000-000000000099';
+const COURSE_ID = '20000000-0000-4000-8000-000000000001';
+const MODULE_ID = '30000000-0000-4000-8000-000000000001';
+const LESSON_ID = '40000000-0000-4000-8000-000000000001';
+const ASSIGNMENT_ID = '50000000-0000-4000-8000-000000000001';
+const SUBMISSION_ID = '60000000-0000-4000-8000-000000000001';
 
 describe('P2 Assignment Functionality', () => {
   let studentToken: string;
@@ -40,38 +50,38 @@ describe('P2 Assignment Functionality', () => {
   let unenrolledStudentToken: string;
 
   const mockUser = {
-    id: 'user-1',
+    id: USER_ID,
     role: 'STUDENT',
     isEmailVerified: true
   };
 
   const mockUnenrolledUser = {
-    id: 'user-2',
+    id: USER2_ID,
     role: 'STUDENT',
     isEmailVerified: true
   };
 
   const mockAdmin = {
-    id: 'admin-1',
+    id: ADMIN_ID,
     role: 'ADMIN',
     isEmailVerified: true
   };
 
   const mockAssignment = {
-    id: 'assignment-1',
-    lessonId: 'lesson-1',
+    id: ASSIGNMENT_ID,
+    lessonId: LESSON_ID,
     title: 'Essay',
     description: 'Write an essay',
     maxMarks: 100
   };
 
   const mockLesson = {
-    id: 'lesson-1',
+    id: LESSON_ID,
     title: 'Assignment Lesson',
     type: 'ASSIGNMENT',
     isPublished: true,
-    moduleId: 'module-1',
-    module: { courseId: 'course-1' },
+    moduleId: MODULE_ID,
+    module: { courseId: COURSE_ID },
     assignments: [mockAssignment]
   };
 
@@ -83,16 +93,16 @@ describe('P2 Assignment Functionality', () => {
     adminToken = jwt.sign({ userId: mockAdmin.id, role: 'ADMIN' }, secret);
 
     mockPrisma.user.findUnique.mockImplementation((args) => {
-      if (args.where.id === 'user-1') return Promise.resolve(mockUser);
-      if (args.where.id === 'user-2') return Promise.resolve(mockUnenrolledUser);
-      if (args.where.id === 'admin-1') return Promise.resolve(mockAdmin);
+      if (args.where.id === USER_ID) return Promise.resolve(mockUser);
+      if (args.where.id === USER2_ID) return Promise.resolve(mockUnenrolledUser);
+      if (args.where.id === ADMIN_ID) return Promise.resolve(mockAdmin);
       return Promise.resolve(null);
     });
 
     mockPrisma.lesson.findUnique.mockResolvedValue(mockLesson);
 
     mockPrisma.enrollment.findUnique.mockImplementation((args) => {
-      if (args.where.userId_courseId.userId === 'user-1') return Promise.resolve({ status: 'ACTIVE' });
+      if (args.where.userId_courseId.userId === USER_ID) return Promise.resolve({ status: 'ACTIVE' });
       return Promise.resolve(null);
     });
   });
@@ -100,29 +110,30 @@ describe('P2 Assignment Functionality', () => {
   describe('GET /api/courses/:courseId/modules/:moduleId/lessons/:lessonId/assignment', () => {
     it('1. Authorized student can retrieve their assignment', async () => {
       const res = await request(app)
-        .get('/api/courses/course-1/modules/module-1/lessons/lesson-1/assignment')
+        .get(`/api/courses/${COURSE_ID}/modules/${MODULE_ID}/lessons/${LESSON_ID}/assignment`)
         .set('Authorization', `Bearer ${studentToken}`);
       
       expect(res.statusCode).toBe(200);
-      expect(res.body.assignment.id).toBe('assignment-1');
+      expect(res.body.assignment.id).toBe(ASSIGNMENT_ID);
     });
 
     it('2. Unenrolled student cannot retrieve it', async () => {
       const res = await request(app)
-        .get('/api/courses/course-1/modules/module-1/lessons/lesson-1/assignment')
+        .get(`/api/courses/${COURSE_ID}/modules/${MODULE_ID}/lessons/${LESSON_ID}/assignment`)
         .set('Authorization', `Bearer ${unenrolledStudentToken}`);
       
       expect(res.statusCode).toBe(403);
     });
 
     it('3. Wrong course/module/lesson relationship is rejected', async () => {
+      const WRONG_COURSE_ID = '20000000-0000-4000-8000-000000000099';
       mockPrisma.lesson.findUnique.mockResolvedValue({
         ...mockLesson,
-        module: { courseId: 'wrong-course' }
+        module: { courseId: WRONG_COURSE_ID }
       });
 
       const res = await request(app)
-        .get('/api/courses/course-1/modules/module-1/lessons/lesson-1/assignment')
+        .get(`/api/courses/${COURSE_ID}/modules/${MODULE_ID}/lessons/${LESSON_ID}/assignment`)
         .set('Authorization', `Bearer ${studentToken}`);
       
       expect(res.statusCode).toBe(404);
@@ -133,16 +144,16 @@ describe('P2 Assignment Functionality', () => {
     it('4. Student can submit a valid text assignment', async () => {
       mockPrisma.assignmentSubmission.findUnique.mockResolvedValue(null);
       mockPrisma.assignmentSubmission.create.mockResolvedValue({
-        id: 'sub-1',
-        assignmentId: 'assignment-1',
-        userId: 'user-1',
+        id: SUBMISSION_ID,
+        assignmentId: ASSIGNMENT_ID,
+        userId: USER_ID,
         textAnswer: 'my essay',
         fileUrl: null,
         status: 'PENDING'
       });
 
       const res = await request(app)
-        .post('/api/courses/course-1/modules/module-1/lessons/lesson-1/assignment/submit')
+        .post(`/api/courses/${COURSE_ID}/modules/${MODULE_ID}/lessons/${LESSON_ID}/assignment/submit`)
         .set('Authorization', `Bearer ${studentToken}`)
         .send({ textAnswer: 'my essay' });
       
@@ -154,7 +165,7 @@ describe('P2 Assignment Functionality', () => {
       mockPrisma.assignmentSubmission.findUnique.mockResolvedValue({ id: 'existing-sub' });
 
       const res = await request(app)
-        .post('/api/courses/course-1/modules/module-1/lessons/lesson-1/assignment/submit')
+        .post(`/api/courses/${COURSE_ID}/modules/${MODULE_ID}/lessons/${LESSON_ID}/assignment/submit`)
         .set('Authorization', `Bearer ${studentToken}`)
         .send({ textAnswer: 'my essay' });
       
@@ -164,7 +175,7 @@ describe('P2 Assignment Functionality', () => {
 
     it('6. Unauthorized user cannot submit another student\'s assignment', async () => {
       const res = await request(app)
-        .post('/api/courses/course-1/modules/module-1/lessons/lesson-1/assignment/submit')
+        .post(`/api/courses/${COURSE_ID}/modules/${MODULE_ID}/lessons/${LESSON_ID}/assignment/submit`)
         .set('Authorization', `Bearer ${unenrolledStudentToken}`)
         .send({ textAnswer: 'hacked' });
       
@@ -175,7 +186,7 @@ describe('P2 Assignment Functionality', () => {
       mockPrisma.assignmentSubmission.findUnique.mockResolvedValue(null);
 
       const res = await request(app)
-        .post('/api/courses/course-1/modules/module-1/lessons/lesson-1/assignment/submit')
+        .post(`/api/courses/${COURSE_ID}/modules/${MODULE_ID}/lessons/${LESSON_ID}/assignment/submit`)
         .set('Authorization', `Bearer ${studentToken}`)
         .attach('file', Buffer.from('console.log("hack")'), { filename: 'hack.js', contentType: 'application/javascript' });
       
@@ -187,19 +198,19 @@ describe('P2 Assignment Functionality', () => {
   describe('POST /api/courses/:courseId/.../submissions/:submissionId/grade', () => {
     it('8. Admin grading authorization', async () => {
       mockPrisma.assignmentSubmission.findUnique.mockResolvedValue({
-        id: 'sub-1',
-        assignmentId: 'assignment-1',
-        userId: 'user-1'
+        id: SUBMISSION_ID,
+        assignmentId: ASSIGNMENT_ID,
+        userId: USER_ID
       });
 
       mockPrisma.assignmentSubmission.update.mockResolvedValue({
-        id: 'sub-1',
+        id: SUBMISSION_ID,
         marks: 90,
         status: 'GRADED'
       });
 
       const res = await request(app)
-        .post('/api/courses/course-1/modules/module-1/lessons/lesson-1/assignment/submissions/sub-1/grade')
+        .post(`/api/courses/${COURSE_ID}/modules/${MODULE_ID}/lessons/${LESSON_ID}/assignment/submissions/${SUBMISSION_ID}/grade`)
         .set('Authorization', `Bearer ${adminToken}`)
         .send({ marks: 90, feedback: 'Good' });
       
@@ -209,7 +220,7 @@ describe('P2 Assignment Functionality', () => {
 
     it('9. Student cannot grade', async () => {
       const res = await request(app)
-        .post('/api/courses/course-1/modules/module-1/lessons/lesson-1/assignment/submissions/sub-1/grade')
+        .post(`/api/courses/${COURSE_ID}/modules/${MODULE_ID}/lessons/${LESSON_ID}/assignment/submissions/${SUBMISSION_ID}/grade`)
         .set('Authorization', `Bearer ${studentToken}`)
         .send({ marks: 90, feedback: 'Good' });
       

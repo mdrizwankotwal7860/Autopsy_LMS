@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { createPaymentSession, handleStripeWebhook } from '../controllers/paymentController';
 import { authenticate } from '../middleware/authMiddleware';
 import { asyncHandler } from '../middleware/asyncHandler';
+import { body } from 'express-validator';
+import { validate } from '../middleware/validate';
 import express from 'express';
 
 const router = Router();
@@ -11,6 +13,6 @@ const router = Router();
 // Let's assume we'll fix the webhook route in app.ts directly to use express.raw().
 // Here we just define the routes.
 
-router.post('/create-session', authenticate, asyncHandler(createPaymentSession));
+router.post('/create-session', authenticate, body('courseId').isUUID().withMessage('courseId must be a valid UUID'), validate, asyncHandler(createPaymentSession));
 
 export default router;

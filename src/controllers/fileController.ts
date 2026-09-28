@@ -40,6 +40,10 @@ export const getProtectedFile = async (req: AuthRequest, res: Response) => {
     throw new BadRequestError('File key is required');
   }
 
+  if (key.includes('..')) {
+    throw new BadRequestError('Invalid file key');
+  }
+
   // Authorization logic
   // Admin can access any file.
   // Students can access their own CV or files from enrolled courses (e.g. assignments, materials).

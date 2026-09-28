@@ -32,6 +32,12 @@ jest.mock('../src/utils/jwt', () => ({
 const mockPrisma = prisma as jest.Mocked<typeof prisma>;
 const mockVerifyToken = jwt.verifyToken as jest.Mock;
 
+const USER_ID = '10000000-0000-4000-8000-000000000001';
+const ADMIN_ID = '10000000-0000-4000-8000-000000000099';
+const COURSE_ID = '20000000-0000-4000-8000-000000000001';
+const LESSON_ID = '40000000-0000-4000-8000-000000000001';
+const OTHER_USER_ID = '10000000-0000-4000-8000-000000000002';
+
 describe('Progress Authorization API', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -43,9 +49,9 @@ describe('Progress Authorization API', () => {
   };
 
   describe('POST /api/progress', () => {
-    const lessonId = 'lesson-1';
-    const courseId = 'course-1';
-    const userId = 'student-1';
+    const lessonId = LESSON_ID;
+    const courseId = COURSE_ID;
+    const userId = USER_ID;
 
     beforeEach(() => {
       (mockPrisma.lesson.findUnique as jest.Mock).mockResolvedValue({
@@ -93,7 +99,7 @@ describe('Progress Authorization API', () => {
       await request(app)
         .post('/api/progress')
         .set('Authorization', 'Bearer dummy-token')
-        .send({ lessonId, isCompleted: true, userId: 'other-student' });
+        .send({ lessonId, isCompleted: true, userId: OTHER_USER_ID });
 
       expect(mockPrisma.lessonProgress.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -105,7 +111,7 @@ describe('Progress Authorization API', () => {
     });
 
     it('admin behavior remains correct', async () => {
-      setupAuth('admin-1', 'ADMIN');
+      setupAuth(ADMIN_ID, 'ADMIN');
       // Admin doesn't need an enrollment record
       
       const res = await request(app)
@@ -119,11 +125,11 @@ describe('Progress Authorization API', () => {
   });
 
   describe('GET /api/progress/course/:courseId', () => {
-    const courseId = 'course-1';
-    const userId = 'student-1';
+    const courseId = COURSE_ID;
+    const userId = USER_ID;
 
     beforeEach(() => {
-      (mockPrisma.lesson.findMany as jest.Mock).mockResolvedValue([{ id: 'lesson-1' }]);
+      (mockPrisma.lesson.findMany as jest.Mock).mockResolvedValue([{ id: LESSON_ID }]);
       (mockPrisma.lessonProgress.count as jest.Mock).mockResolvedValue(1);
     });
 

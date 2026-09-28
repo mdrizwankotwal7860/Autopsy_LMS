@@ -40,25 +40,36 @@ jest.mock('../src/utils/prisma', () => ({
 
 const mockPrisma = prisma as jest.Mocked<typeof prisma>;
 
+// Valid UUID constants for test IDs
+const USER_ID = '10000000-0000-4000-8000-000000000001';
+const USER2_ID = '10000000-0000-4000-8000-000000000002';
+const ADMIN_ID = '10000000-0000-4000-8000-000000000099';
+const COURSE_ID = '20000000-0000-4000-8000-000000000001';
+const COURSE_WRONG_ID = '20000000-0000-4000-8000-000000000099';
+const MODULE_ID = '30000000-0000-4000-8000-000000000001';
+const LESSON_ID = '40000000-0000-4000-8000-000000000001';
+const EXAM_ID = '50000000-0000-4000-8000-000000000001';
+const ATTEMPT_ID = '60000000-0000-4000-8000-000000000001';
+
 describe('P2 Exam V1 Functionality', () => {
   let studentToken: string;
   let unenrolledStudentToken: string;
   let adminToken: string;
 
   const mockUser = {
-    id: 'user-1',
+    id: USER_ID,
     role: 'STUDENT',
     isEmailVerified: true
   };
 
   const mockUnenrolledUser = {
-    id: 'user-2',
+    id: USER2_ID,
     role: 'STUDENT',
     isEmailVerified: true
   };
 
   const mockAdmin = {
-    id: 'admin-1',
+    id: ADMIN_ID,
     role: 'ADMIN',
     isEmailVerified: true
   };
@@ -69,8 +80,8 @@ describe('P2 Exam V1 Functionality', () => {
   ];
 
   const mockExam = {
-    id: 'exam-1',
-    lessonId: 'lesson-exam',
+    id: EXAM_ID,
+    lessonId: LESSON_ID,
     title: 'Final Exam',
     passingMarks: 10,
     timeLimitMins: 30,
@@ -78,12 +89,12 @@ describe('P2 Exam V1 Functionality', () => {
   };
 
   const mockLesson = {
-    id: 'lesson-exam',
+    id: LESSON_ID,
     title: 'Exam Lesson',
     type: 'EXAM',
     isPublished: true,
-    moduleId: 'module-1',
-    module: { courseId: 'course-1' },
+    moduleId: MODULE_ID,
+    module: { courseId: COURSE_ID },
     exams: [{ ...mockExam, questions: mockQuestions.map(({ answer, ...q }) => q) }]
   };
 
@@ -95,16 +106,16 @@ describe('P2 Exam V1 Functionality', () => {
     adminToken = jwt.sign({ userId: mockAdmin.id, role: 'ADMIN' }, secret);
 
     mockPrisma.user.findUnique.mockImplementation((args) => {
-      if (args.where.id === 'user-1') return Promise.resolve(mockUser);
-      if (args.where.id === 'user-2') return Promise.resolve(mockUnenrolledUser);
-      if (args.where.id === 'admin-1') return Promise.resolve(mockAdmin);
+      if (args.where.id === USER_ID) return Promise.resolve(mockUser);
+      if (args.where.id === USER2_ID) return Promise.resolve(mockUnenrolledUser);
+      if (args.where.id === ADMIN_ID) return Promise.resolve(mockAdmin);
       return Promise.resolve(null);
     });
 
     mockPrisma.lesson.findUnique.mockResolvedValue(mockLesson);
 
     mockPrisma.enrollment.findUnique.mockImplementation((args) => {
-      if (args.where.userId_courseId.userId === 'user-1') return Promise.resolve({ status: 'ACTIVE' });
+      if (args.where.userId_courseId.userId === USER_ID) return Promise.resolve({ status: 'ACTIVE' });
       return Promise.resolve(null);
     });
   });
@@ -112,16 +123,16 @@ describe('P2 Exam V1 Functionality', () => {
   describe('GET /api/courses/.../exam', () => {
     it('1. Authorized enrolled student can retrieve exam', async () => {
       const res = await request(app)
-        .get('/api/courses/course-1/modules/module-1/lessons/lesson-exam/exam')
+        .get(`/api/courses/${COURSE_ID}/modules/${MODULE_ID}/lessons/${LESSON_ID}/exam`)
         .set('Authorization', `Bearer ${studentToken}`);
 
       expect(res.statusCode).toBe(200);
-      expect(res.body.exam.id).toBe('exam-1');
+      expect(res.body.exam.id).toBe(EXAM_ID);
     });
 
     it('2. Unenrolled student cannot retrieve exam', async () => {
       const res = await request(app)
-        .get('/api/courses/course-1/modules/module-1/lessons/lesson-exam/exam')
+        .get(`/api/courses/${COURSE_ID}/modules/${MODULE_ID}/lessons/${LESSON_ID}/exam`)
         .set('Authorization', `Bearer ${unenrolledStudentToken}`);
 
       expect(res.statusCode).toBe(403);
@@ -130,17 +141,17 @@ describe('P2 Exam V1 Functionality', () => {
     it('3. Mismatched course/module/lesson relationship is rejected', async () => {
       mockPrisma.lesson.findUnique.mockResolvedValue({
         ...mockLesson,
-        module: { courseId: 'wrong-course' }
+        module: { courseId: COURSE_WRONG_ID }
       });
       const res = await request(app)
-        .get('/api/courses/course-1/modules/module-1/lessons/lesson-exam/exam')
+        .get(`/api/courses/${COURSE_ID}/modules/${MODULE_ID}/lessons/${LESSON_ID}/exam`)
         .set('Authorization', `Bearer ${studentToken}`);
       expect(res.statusCode).toBe(404);
     });
 
     it('4 & 5 & 6. Student receives exam questions randomized, without answers', async () => {
       const res = await request(app)
-        .get('/api/courses/course-1/modules/module-1/lessons/lesson-exam/exam')
+        .get(`/api/courses/${COURSE_ID}/modules/${MODULE_ID}/lessons/${LESSON_ID}/exam`)
         .set('Authorization', `Bearer ${studentToken}`);
 
       expect(res.statusCode).toBe(200);
@@ -154,20 +165,20 @@ describe('P2 Exam V1 Functionality', () => {
   describe('POST /api/courses/.../exam/attempt', () => {
     it('7 & 8 & 9. Student can start an attempt for themselves only', async () => {
       mockPrisma.examAttempt.create.mockResolvedValue({
-        id: '123e4567-e89b-12d3-a456-426614174000',
-        examId: 'exam-1',
-        userId: 'user-1',
+        id: ATTEMPT_ID,
+        examId: EXAM_ID,
+        userId: USER_ID,
         startedAt: new Date()
       });
 
       const res = await request(app)
-        .post('/api/courses/course-1/modules/module-1/lessons/lesson-exam/exam/attempt')
+        .post(`/api/courses/${COURSE_ID}/modules/${MODULE_ID}/lessons/${LESSON_ID}/exam/attempt`)
         .set('Authorization', `Bearer ${studentToken}`);
 
       expect(res.statusCode).toBe(201);
-      expect(res.body.attempt.userId).toBe('user-1');
+      expect(res.body.attempt.userId).toBe(USER_ID);
       expect(mockPrisma.examAttempt.create).toHaveBeenCalledWith({
-        data: { examId: 'exam-1', userId: 'user-1' }
+        data: { examId: EXAM_ID, userId: USER_ID }
       });
     });
   });
@@ -178,13 +189,13 @@ describe('P2 Exam V1 Functionality', () => {
         const tx = {
           examAttempt: {
             findUnique: jest.fn().mockResolvedValue({
-              id: '123e4567-e89b-12d3-a456-426614174000',
-              examId: 'exam-1',
-              userId: 'user-1',
+              id: ATTEMPT_ID,
+              examId: EXAM_ID,
+              userId: USER_ID,
               startedAt: new Date()
             }),
             update: jest.fn().mockResolvedValue({
-              id: '123e4567-e89b-12d3-a456-426614174000',
+              id: ATTEMPT_ID,
               startedAt: new Date(),
               endedAt: new Date()
             })
@@ -197,9 +208,9 @@ describe('P2 Exam V1 Functionality', () => {
       });
 
       const res = await request(app)
-        .post('/api/courses/course-1/modules/module-1/lessons/lesson-exam/exam/submit')
+        .post(`/api/courses/${COURSE_ID}/modules/${MODULE_ID}/lessons/${LESSON_ID}/exam/submit`)
         .set('Authorization', `Bearer ${studentToken}`)
-        .send({ attemptId: '123e4567-e89b-12d3-a456-426614174000', answers: { q1: 'A', q2: 'A' } }); // Q1 correct, Q2 wrong
+        .send({ attemptId: ATTEMPT_ID, answers: { q1: 'A', q2: 'A' } }); // Q1 correct, Q2 wrong
 
       expect(res.statusCode).toBe(200);
       expect(res.body.result.score).toBe(5); // 5 for Q1
@@ -212,9 +223,9 @@ describe('P2 Exam V1 Functionality', () => {
         const tx = {
           examAttempt: {
             findUnique: jest.fn().mockResolvedValue({
-              id: '123e4567-e89b-12d3-a456-426614174000',
-              examId: 'exam-1',
-              userId: 'user-1',
+              id: ATTEMPT_ID,
+              examId: EXAM_ID,
+              userId: USER_ID,
               startedAt: new Date(),
               endedAt: new Date() // Already ended
             })
@@ -224,9 +235,9 @@ describe('P2 Exam V1 Functionality', () => {
       });
 
       const res = await request(app)
-        .post('/api/courses/course-1/modules/module-1/lessons/lesson-exam/exam/submit')
+        .post(`/api/courses/${COURSE_ID}/modules/${MODULE_ID}/lessons/${LESSON_ID}/exam/submit`)
         .set('Authorization', `Bearer ${studentToken}`)
-        .send({ attemptId: '123e4567-e89b-12d3-a456-426614174000', answers: {} });
+        .send({ attemptId: ATTEMPT_ID, answers: {} });
 
       expect(res.statusCode).toBe(400);
       expect(res.body.error.message).toMatch(/already been submitted/);
@@ -238,9 +249,9 @@ describe('P2 Exam V1 Functionality', () => {
         const tx = {
           examAttempt: {
             findUnique: jest.fn().mockResolvedValue({
-              id: '123e4567-e89b-12d3-a456-426614174000',
-              examId: 'exam-1',
-              userId: 'user-1',
+              id: ATTEMPT_ID,
+              examId: EXAM_ID,
+              userId: USER_ID,
               startedAt: pastDate
             })
           }
@@ -249,9 +260,9 @@ describe('P2 Exam V1 Functionality', () => {
       });
 
       const res = await request(app)
-        .post('/api/courses/course-1/modules/module-1/lessons/lesson-exam/exam/submit')
+        .post(`/api/courses/${COURSE_ID}/modules/${MODULE_ID}/lessons/${LESSON_ID}/exam/submit`)
         .set('Authorization', `Bearer ${studentToken}`)
-        .send({ attemptId: '123e4567-e89b-12d3-a456-426614174000', answers: {} });
+        .send({ attemptId: ATTEMPT_ID, answers: {} });
 
       expect(res.statusCode).toBe(400);
       expect(res.body.error.message).toMatch(/Time limit exceeded/);

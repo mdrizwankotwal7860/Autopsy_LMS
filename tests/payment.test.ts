@@ -31,17 +31,25 @@ jest.mock('../src/integrations/stripe/stripeService', () => ({
 
 const mockPrisma = prisma as jest.Mocked<typeof prisma>;
 
+// Valid UUID constants for test IDs
+const USER_ID = '10000000-0000-4000-8000-000000000001';
+const COURSE_ID = '20000000-0000-4000-8000-000000000001';
+const WRONG_COURSE_ID = '20000000-0000-4000-8000-000000000099';
+const PAYMENT_ID = '70000000-0000-4000-8000-000000000001';
+const RECENT_PAYMENT_ID = '70000000-0000-4000-8000-000000000002';
+const ENROLLMENT_ID = '80000000-0000-4000-8000-000000000001';
+
 describe('Payment & Stripe Security', () => {
   let token: string;
   const mockUser = {
-    id: 'user-1',
+    id: USER_ID,
     email: 'test@example.com',
     eligibilityStatus: 'APPROVED',
     isEmailVerified: true
   };
 
   const mockCourse = {
-    id: 'course-1',
+    id: COURSE_ID,
     title: 'Autopsy 101',
     price: 150.00,
     status: 'PUBLISHED'
@@ -56,7 +64,7 @@ describe('Payment & Stripe Security', () => {
     mockPrisma.course.findUnique.mockResolvedValue(mockCourse as any);
     mockPrisma.payment.findFirst.mockResolvedValue(null); // No recent payment
     mockPrisma.payment.findUnique.mockResolvedValue(null);
-    mockPrisma.payment.create.mockResolvedValue({ id: 'payment-1' } as any);
+    mockPrisma.payment.create.mockResolvedValue({ id: PAYMENT_ID } as any);
     mockPrisma.enrollment.findUnique.mockResolvedValue(null);
 
     (stripe.checkout.sessions.create as jest.Mock).mockResolvedValue({
@@ -106,7 +114,7 @@ describe('Payment & Stripe Security', () => {
 
     it('Repeated checkout creation within 15 mins returns existing session', async () => {
       mockPrisma.payment.findFirst.mockResolvedValue({
-        id: 'payment-recent',
+        id: RECENT_PAYMENT_ID,
         stripeSessionId: 'cs_test_recent',
         createdAt: new Date()
       } as any);
@@ -169,7 +177,7 @@ describe('Payment & Stripe Security', () => {
 
     it('Correct amount activates enrollment', async () => {
       mockPrisma.payment.findUnique.mockResolvedValue({
-        id: 'payment-1',
+        id: PAYMENT_ID,
         amount: 150.00,
         currency: 'GBP',
         status: 'PENDING',
@@ -178,7 +186,7 @@ describe('Payment & Stripe Security', () => {
       } as any);
 
       mockPrisma.payment.updateMany.mockResolvedValue({ count: 1 } as any); // Simulate success lock
-      mockPrisma.enrollment.create.mockResolvedValue({ id: 'enr-1' } as any);
+      mockPrisma.enrollment.create.mockResolvedValue({ id: ENROLLMENT_ID } as any);
 
       const res = await triggerValidWebhook({
         id: 'cs_test_123',
@@ -198,7 +206,7 @@ describe('Payment & Stripe Security', () => {
 
     it('Incorrect/lower amount does NOT activate enrollment', async () => {
       mockPrisma.payment.findUnique.mockResolvedValue({
-        id: 'payment-1',
+        id: PAYMENT_ID,
         amount: 150.00,
         currency: 'GBP',
         status: 'PENDING',
@@ -224,7 +232,7 @@ describe('Payment & Stripe Security', () => {
 
     it('Incorrect currency does NOT activate enrollment', async () => {
       mockPrisma.payment.findUnique.mockResolvedValue({
-        id: 'payment-1',
+        id: PAYMENT_ID,
         amount: 150.00,
         currency: 'GBP',
         status: 'PENDING',
@@ -247,7 +255,7 @@ describe('Payment & Stripe Security', () => {
 
     it('Incorrect course metadata does NOT activate enrollment', async () => {
       mockPrisma.payment.findUnique.mockResolvedValue({
-        id: 'payment-1',
+        id: PAYMENT_ID,
         amount: 150.00,
         currency: 'GBP',
         status: 'PENDING',
@@ -261,7 +269,7 @@ describe('Payment & Stripe Security', () => {
         currency: 'gbp',
         payment_status: 'paid',
         payment_intent: 'pi_123',
-        metadata: { userId: mockUser.id, courseId: 'hacked-course-id' } // Mismatched course
+        metadata: { userId: mockUser.id, courseId: WRONG_COURSE_ID } // Mismatched course
       });
 
       expect(res.statusCode).toBe(200);
@@ -271,7 +279,7 @@ describe('Payment & Stripe Security', () => {
     it('Duplicate webhook does not create duplicate enrollment', async () => {
       // First webhook
       mockPrisma.payment.findUnique.mockResolvedValue({
-        id: 'payment-1',
+        id: PAYMENT_ID,
         amount: 150.00,
         currency: 'GBP',
         status: 'SUCCESS', // ALREADY SUCCESS!
@@ -298,7 +306,7 @@ describe('Payment & Stripe Security', () => {
       // Simulate that the payment was PENDING when retrieved, but updateMany returned 0 count
       // because another process *just* updated it
       mockPrisma.payment.findUnique.mockResolvedValue({
-        id: 'payment-1',
+        id: PAYMENT_ID,
         amount: 150.00,
         currency: 'GBP',
         status: 'PENDING',
